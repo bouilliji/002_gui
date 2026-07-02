@@ -2,6 +2,7 @@
 
 après avoir clone le repo et avoir un terminale dedans lancé la comande suivante celon votre configuration
 
+___________________________________________________________________________________________________________________
 ## Sous Windows
 
 ### Bash
@@ -16,6 +17,7 @@ après avoir clone le repo et avoir un terminale dedans lancé la comande suivan
 .\src\.setup_win.ps1
 ```
 
+__________________________________________________________________________________________________________________
 ## Sous Linux
 
 ### Bash
