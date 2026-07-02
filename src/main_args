@@ -1,3 +1,7 @@
+from sys import argparse
+from PyQt6.QtWidgets import QApplication
+from tools.Tools_File import Tools_File
+
 def main():
     parser = argparse.ArgumentParser(description="Lancer FITS viewer")
     parser.add_argument("--auto", type=str, help="action automatique au demarrage (ex: zoom_half, apply_iris)")
