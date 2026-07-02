@@ -1,30 +1,30 @@
-#002_GUI
+# 002_GUI
 
 après avoir clone le repo et avoir un terminale dedans lancé la comande suivante celon votre configuration
 
-##Sous Windows
+## Sous Windows
 
-###Bash
+### Bash
 
 ```bash
-./src/.setup_win.bat
+.\src\.setup_win.bat
 ```
 
-###Powershell
+### Powershell
 
 ```powershell
-./src/.setup_win.ps1
+.\src\.setup_win.ps1
 ```
 
-##Sous Linux
+## Sous Linux
 
-###Bash
+### Bash
 
 ```bash
 bash ./src/.setup_linux.bat
 ```
 
-###Fish
+### Fish
 
 ```fish
 fish ./src/.setup_win.fish
