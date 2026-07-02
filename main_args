@@ -1,0 +1,30 @@
+def main():
+    parser = argparse.ArgumentParser(description="Lancer FITS viewer")
+    parser.add_argument("--auto", type=str, help="action automatique au demarrage (ex: zoom_half, apply_iris)")
+    args = parser.parse_args()
+
+    # initialisation QApplication, fenetre principale, etc.
+    app = QApplication([])
+    # construire/ouvrir ta fenetre ; ici Tools_File attend image_data
+    image_data = ...  # ta logique pour charger l'image
+    win = Tools_File(image_data)
+
+    # traiter l'argument --auto
+    if args.auto:
+        if args.auto == "zoom_half":
+            # appelle la fonction dezoom /2
+            win._reset_zoom_half()
+        elif args.auto == "zoom_full":
+            win._reset_zoom()          # ou ta fonction qui remet tout
+        elif args.auto == "iris":
+            win._apply_iris()
+        elif args.auto == "percentile":
+            win._apply_percentile()
+        elif args.auto == "zscale":
+            win._apply_zscale()
+        # autres actions possibles...
+        else:
+            print(f"Action auto inconnue: {args.auto}")
+
+    win.show()
+    app.exec()
