@@ -56,12 +56,13 @@ class GUI_Tab_File(QWidget):
         if filename:
             self.parent.image_data = Tools_File.load_fits_image(filename)
             QMessageBox.information(self, "Chargement", f"Image chargee : {filename}")
+            print(self.parent.image_data)
 
     def afficher_image(self):
         if self.parent.image_data is None:
             QMessageBox.warning(self, "Erreur", "Aucune image chargee.")
             return
-        self.parent.image_window = Tools_File(self.parent.image_data)
+        self.parent.image_window = Tools_File(self.parent.image_data, self.parent.anotations)
         self.parent.image_window.show()
 
     def quitter(self):

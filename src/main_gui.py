@@ -23,6 +23,7 @@ class main_window(QMainWindow):
         self.move(0, 0)
         self.image_data = None
         self.image_window = None
+        self.anotation = {'circle': [], 'cross': []}
 
         onglets = QTabWidget()
         onglets.addTab(GUI_Tab_File(self),       "File")
