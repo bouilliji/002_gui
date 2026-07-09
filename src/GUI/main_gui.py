@@ -8,9 +8,9 @@ from PyQt6.QtCore import Qt
 import argparse
 
 # GUI onglets
-from GUI.GUI_Tab_File       import GUI_Tab_File
-from GUI.GUI_Tab_Background import GUI_Tab_Background
-from GUI.GUI_Tab_Centroid   import GUI_Tab_Centroid
+from GUI_Tab_File       import GUI_Tab_File
+from GUI_Tab_Background import GUI_Tab_Background
+from GUI_Tab_Centroid   import GUI_Tab_Centroid
 
 
 class main_window(QMainWindow):

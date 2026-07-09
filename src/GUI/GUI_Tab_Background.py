@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 # Utilitaires
-from GUI.tools.Tools_Background import Tools_Background
+from tools.Tools_Background import Tools_Background
 
 
 

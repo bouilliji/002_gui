@@ -14,7 +14,7 @@ fig, axs = plt.subplots()
 from astropy.stats import sigma_clipped_stats, SigmaClip
 from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
-sigma_clip = SigmaClip(sigma=3.0, maxiters=10)
+sigma_clip = SigmaClip(sigma=100.0, maxiters=10)
 threshold = detect_threshold(data, n_sigma=2.0, sigma_clip=sigma_clip)
 
 segment_img = detect_sources(data, threshold, n_pixels=10)
@@ -33,13 +33,13 @@ for y in range(len(data)):
 
     img_masked.append(temp)
 
-mean, median, std = sigma_clipped_stats(data, sigma=3.0, mask=mask)
+mean, median, std = sigma_clipped_stats(data, sigma=100.0, mask=mask)
 print(np.array((mean, median, std)))
 
 from astropy.stats import SigmaClip
 from photutils.background import Background2D, MedianBackground
 
-sigma_clip = SigmaClip(sigma=3.0)
+sigma_clip = SigmaClip(sigma=100.0)
 bkg_estimator = MedianBackground()
 bkg = Background2D(data, (15, 15), filter_size=(3, 3), sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
 
@@ -47,7 +47,7 @@ data2_sub = data - bkg.background
 
 data = data2_sub
 
-mean, median, std = sigma_clipped_stats(data, sigma=3.0)
+mean, median, std = sigma_clipped_stats(data, sigma=100.0)
 print(np.array((mean, median, std)))
 
 from photutils.detection import DAOStarFinder

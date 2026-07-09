@@ -2,4 +2,4 @@ PyQt6
 numpy
 matplotlib
 astropy
-photuyils
+photutils
