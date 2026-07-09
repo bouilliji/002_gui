@@ -8,9 +8,9 @@ from PyQt6.QtCore import Qt
 import argparse
 
 # GUI onglets
-from GUI_Tab_File       import GUI_Tab_File
-from GUI_Tab_Background import GUI_Tab_Background
-from GUI_Tab_Centroid   import GUI_Tab_Centroid
+from GUI.GUI_Tab_File       import GUI_Tab_File
+from GUI.GUI_Tab_Background import GUI_Tab_Background
+from GUI.GUI_Tab_Centroid   import GUI_Tab_Centroid
 
 
 class main_window(QMainWindow):
@@ -23,7 +23,6 @@ class main_window(QMainWindow):
         self.move(0, 0)
         self.image_data = None
         self.image_window = None
-        self.anotation = {'circle': [], 'cross': []}
 
         onglets = QTabWidget()
         onglets.addTab(GUI_Tab_File(self),       "File")

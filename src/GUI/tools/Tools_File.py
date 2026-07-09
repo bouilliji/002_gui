@@ -4,21 +4,23 @@ from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
+from matplotlib.pyplot import Circle
 
 import numpy as np
 from astropy.io import fits
 from astropy.visualization import ZScaleInterval, ImageNormalize, AsymmetricPercentileInterval
+from astropy.stats import biweight_location
+
+from photutils.centroids import centroid_com
 
 
 class Tools_File(QWidget):
 
-    def __init__(self, image_data, anotations):
+    def __init__(self, image_data):
         super().__init__()
         self.setWindowTitle("FITS Viewer (PyQt6)")
         self.resize(1200, 800)
         self.move(0, 0)
-
-        self.anotations = anotations
 
         # donnees image (float, NaN possibles)
         self.image = np.asarray(image_data, dtype=float)
@@ -186,19 +188,6 @@ class Tools_File(QWidget):
 
         # store last rectangle coords in image pixel space (x0,y0,x1,y1) or None
         self.last_rect = None
-
-        self._update_anotation()
-
-        anotation_controler = make_raw()
-        anotation_controler.addWidget(QLabel("anotation :   "))
-        self.circle_btn = QPushButton('circle')
-        anotation_controler.addWidget(self.circle_btn)
-        self.circle_btn.clicked.connect(self._calcul_circle)
-        self.cross_btn = QPushButton('cross')
-        anotation_controler.addWidget(self.cross_btn)
-        self.cross_btn.clicked.connect(self._calcul_cross)
-
-
 
 
     def _on_mouse_move(self, event):
@@ -388,9 +377,6 @@ class Tools_File(QWidget):
 
         self._update_value_fields(vmin, vmax)
 
-
-
-
     def _on_text_values_changed(self):
         # Lire les valeurs texte, convertir en float si possible
         try:
@@ -556,9 +542,6 @@ class Tools_File(QWidget):
         self.ax.set_ylim(new_y0, new_y1)
         self.canvas.draw_idle()
 
-
-
-
     def _on_mouse_move(self, event):
         if event.inaxes is None:
             self.edit_x.clear()
@@ -588,25 +571,3 @@ class Tools_File(QWidget):
         else:
             self.edit_adu.clear()
 
-    def _add_circle(self, center, radius):
-        x, y = center
-        circ = Circle((x, y), radius, edgecolor="red", facecolor="none", linewidth=1.5)
-        self.ax.add_patch(circ)
-
-        self.canvas.draw_idle()
-
-    def _add_cross(self, point):
-        size = 5
-        x, y = point
-        l1, = self.ax.plot([x - size, x + size], [y - size, y + size], color="red")
-        l2, = self.ax.plot([x - size, x + size], [y + size, y - size], color="red")
-
-        self.canvas.draw_idle()
-
-    def _update_anotation(self):
-        for anotation in self.anotations['circle']:
-            center, radius = anotation
-            self._add_circle(center, radius)
-
-        for anotation in self.anotations['cross']:
-            self._add_cross(anotation)

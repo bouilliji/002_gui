@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 # Utilitaires
-from tools.Tools_File import Tools_File
+from GUI.tools.Tools_File import Tools_File
 
 
 
@@ -62,7 +62,7 @@ class GUI_Tab_File(QWidget):
         if self.parent.image_data is None:
             QMessageBox.warning(self, "Erreur", "Aucune image chargee.")
             return
-        self.parent.image_window = Tools_File(self.parent.image_data, self.parent.anotations)
+        self.parent.image_window = Tools_File(self.parent.image_data)
         self.parent.image_window.show()
 
     def quitter(self):
