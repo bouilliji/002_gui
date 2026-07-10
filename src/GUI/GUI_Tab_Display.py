@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel, QPushButton, QLineEdit, QSizePolicy
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel, QPushButton, QLineEdit, QSizePolicy, QStackedWidget, QComboBox, QInputDialog
 from PyQt6.QtCore import Qt
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -7,41 +7,51 @@ from matplotlib.widgets import RectangleSelector
 from matplotlib.pyplot import Circle
 
 import numpy as np
-from astropy.io import fits
 from astropy.visualization import ZScaleInterval, ImageNormalize, AsymmetricPercentileInterval
-from astropy.stats import biweight_location
 
-from photutils.centroids import centroid_com
+import json
+import os
 
+class GUI_Tab_Display(QWidget):
 
-class Tools_File(QWidget):
-
-    def __init__(self, image_data):
+    def __init__(self, parent):
         super().__init__()
         self.setWindowTitle("FITS Viewer (PyQt6)")
         self.resize(1200, 800)
         self.move(0, 0)
+        
+        with open(r'./src/GUI/saved_preset.json', 'r') as data:
+            self.saved_preset = json.load(data)
 
         # donnees image (float, NaN possibles)
-        self.image = np.asarray(image_data, dtype=float)
+        self.parent = parent
 
-        # valeurs min/max initiales (ignorer NaN)
-        self.minval = float(np.nanmin(self.image))
-        self.maxval = float(np.nanmax(self.image))
+        self.minval = 0.0
+        self.maxval = 1.0
 
-        # protection si image constante / non-finite
-        if not np.isfinite(self.minval):
-            self.minval = 0.0
-        if not np.isfinite(self.maxval):
-            self.maxval = 1.0
-        if self.maxval == self.minval:
-            self.maxval = self.minval + 1.0
+        # Layout principal : un stack avec une page "vide" et une page "contenu"
+        outer_layout = QVBoxLayout()
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+        self.setLayout(outer_layout)
 
-        # Layout principal sans marges ni espacement entre lignes
-        layout = QVBoxLayout()
+        self.stack = QStackedWidget()
+        outer_layout.addWidget(self.stack)
+
+        # --- Page vide (aucune image) ---
+        self.page_vide = QWidget()
+        layout_vide = QVBoxLayout(self.page_vide)
+        label_vide = QLabel("Aucune image chargee")
+        label_vide.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout_vide.addWidget(label_vide)
+        self.stack.addWidget(self.page_vide)
+
+        # --- Page contenu (canvas + tous les controles) ---
+        self.page_contenu = QWidget()
+        layout = QVBoxLayout(self.page_contenu)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        self.setLayout(layout)
+        self.stack.addWidget(self.page_contenu)
     
         # Figure
         fig = Figure()
@@ -51,9 +61,6 @@ class Tools_File(QWidget):
         self.ax = fig.add_subplot(111)
     
         # afficher l'image et garder la reference a l'Image
-        self.im = self.ax.imshow(self.image, cmap="gray", origin="lower",
-                                 vmin=self.minval, vmax=self.maxval)
-        self.ax.set_title("Image FITS")
         fig.tight_layout()
         self.canvas.draw()
     
@@ -188,8 +195,88 @@ class Tools_File(QWidget):
 
         # store last rectangle coords in image pixel space (x0,y0,x1,y1) or None
         self.last_rect = None
+        
+        row_preset = make_row()
+        self.combo = QComboBox()
+        row_preset.addWidget(self.combo)
+        self.combo.currentTextChanged.connect(self._on_option_choisie)
+        layout.addWidget(self.combo)
+        
+        self.combo.addItems(["Full Image", "Dev 1", "Dev 2", "Save Rect"])
+        
+        for nom in self.saved_preset:
+            if self.combo.findText(nom) == -1:
+                self.combo.insertItem(self.combo.count() - 1, nom)
+            self.combo.setCurrentText(nom)
+        
+        self.combo.setCurrentIndex(0)
+        
+        self.use_preset = QPushButton("use preset")
+        row_preset.addWidget(self.use_preset)
+        self.use_preset.clicked.connect(self._change_image)
+        
+    
+    def _change_image(self):
+        if self.combo.currentText() == 'Full Image':
+            self.parent.image_data = self.parent.base_image.copy()
+        
+        else:
+            y1, x1, y2, x2 = self.saved_preset[self.combo.currentText()]
+            self.parent.image_data = self.parent.base_image[x1:x2, y1:y2]
+        
+        self.update_display()
+        
 
+    def _on_option_choisie(self, nom):
+        if nom != "Save Rect":
+            self.last_option = self.combo.findText(nom)
+            return
+        
+        if self.last_rect is None:
+            self.combo.setCurrentIndex(self.last_option)
+            return
+        
+        nom, ok = QInputDialog.getText(self, "Save rect", "Nom du preset :")
+        
+        if not(ok and nom.strip()):
+            self.combo.setCurrentIndex(self.last_option)
+            return
+        
+        self.combo.insertItem(self.combo.count() - 1, nom)
+            
+        self.saved_preset[nom] = self.last_rect
+        
+        with open(r'./src/GUI/saved_preset.json', 'w') as fichier:
+            json.dump(self.saved_preset, fichier, indent=4)
 
+                
+    
+    
+    def update_display(self):
+        if self.parent.image_data is not None:
+            self.minval = float(np.nanmin(self.parent.image_data))
+            self.maxval = float(np.nanmax(self.parent.image_data))
+
+            if not np.isfinite(self.minval):
+                self.minval = 0.0
+            if not np.isfinite(self.maxval):
+                self.maxval = 1.0
+            if self.maxval == self.minval:
+                self.maxval = self.minval + 1.0
+
+            self.ax.clear()   # <-- vider les axes avant de redessiner
+            self.im = self.ax.imshow(self.parent.image_data, cmap="gray", origin="lower",
+                                    vmin=self.minval, vmax=self.maxval)
+            self.ax.set_title("Image FITS")
+            self.stack.setCurrentWidget(self.page_contenu)
+        else:
+            self.minval = 0.0
+            self.maxval = 1.0
+            self.im = None
+            self.stack.setCurrentWidget(self.page_vide)
+
+        self.canvas.draw_idle()
+    
     def _on_mouse_move(self, event):
         """Met a jour X, Y, ADU selon la position de la souris sur l'image."""
         # Si souris hors axes ou pas sur image, vider les champs
@@ -213,7 +300,7 @@ class Tools_File(QWidget):
         ix = int(np.floor(xdata + 0.5))
         iy = int(np.floor(ydata + 0.5))
 
-        ny, nx = self.image.shape
+        ny, nx = self.parent.image_data.shape
         if ix < 0 or ix >= nx or iy < 0 or iy >= ny:
             # hors image
             self.edit_x.clear()
@@ -222,7 +309,7 @@ class Tools_File(QWidget):
             return
 
         # Recuperer valeur ADU du pixel
-        val = self.image[iy, ix]
+        val = self.parent.image_data[iy, ix]
 
         # Mettre a jour champs (format compact)
         self.edit_x.setText(str(ix))
@@ -232,12 +319,6 @@ class Tools_File(QWidget):
             self.edit_adu.setText("{:.6g}".format(float(val)))
         else:
             self.edit_adu.setText("")
-
-    @staticmethod
-    def load_fits_image(filename):
-        """Charge un fichier FITS (supporte .gz) et retourne les donnees numpy."""
-        with fits.open(filename, memmap=False) as hdul:
-            return np.array(hdul[0].data, dtype=float)
 
     def _slider_to_value(self, slider_value):
         """Mappe la position du slider (0..1000) a l'echelle lineaire des donnees."""
@@ -254,9 +335,9 @@ class Tools_File(QWidget):
 
     def _apply_iris(self):
 
-        imin = np.min(self.image)
-        imax = np.max(self.image)
-        median = np.median(self.image)
+        imin = np.min(self.parent.image_data)
+        imax = np.max(self.parent.image_data)
+        median = np.median(self.parent.image_data)
         vmin = median - 200
         vmax = median + 1000
         if vmin<imin:
@@ -283,7 +364,7 @@ class Tools_File(QWidget):
 
     def _apply_percentile(self, lowpct=3, highpct=98):
         """Calcule les percentiles lowpct-highpct en ignorant NaN et applique."""
-        data = self.image
+        data = self.parent.image_data
         # extraire valeurs finies
         vals = data[np.isfinite(data)].ravel()
         if vals.size == 0:
@@ -325,10 +406,10 @@ class Tools_File(QWidget):
             interval = ZScaleInterval()
             # preferer get_limits quand disponible
             if hasattr(interval, "get_limits"):
-                vmin, vmax = interval.get_limits(self.image)
+                vmin, vmax = interval.get_limits(self.parent.image_data)
             else:
                 # fallback: appeler interval puis deduire echelle depuis resultat si possible
-                res = interval(self.image)
+                res = interval(self.parent.image_data)
                 if isinstance(res, (tuple, list, np.ndarray)):
                     # si c'est un tableau (image normalisee), prendre min/max et denormaliser
                     arr = np.asarray(res)
@@ -336,8 +417,8 @@ class Tools_File(QWidget):
                         rmin, rmax = float(np.nanmin(arr)), float(np.nanmax(arr))
                         # denormaliser par minval/maxval de l'image retourne si besoin
                         # ici mieux prendre percentiles sur image d'origine comme fallback
-                        vmin = float(np.nanpercentile(self.image, 0.5))
-                        vmax = float(np.nanpercentile(self.image, 99.5))
+                        vmin = float(np.nanpercentile(self.parent.image_data, 0.5))
+                        vmax = float(np.nanpercentile(self.parent.image_data, 99.5))
                     else:
                         raise ValueError
                 else:
@@ -346,7 +427,7 @@ class Tools_File(QWidget):
                 raise ValueError
         except Exception:
             # fallback simple: percentiles robustes
-            vals = self.image[np.isfinite(self.image)].ravel()
+            vals = self.parent.image_data[np.isfinite(self.parent.image_data)].ravel()
             if vals.size:
                 vmin = float(np.percentile(vals, 0.5))
                 vmax = float(np.percentile(vals, 99.5))
@@ -453,7 +534,7 @@ class Tools_File(QWidget):
         ix1 = int(np.floor(max(x0, x1) + 0.5))
         iy0 = int(np.floor(min(y0, y1) + 0.5))
         iy1 = int(np.floor(max(y0, y1) + 0.5))
-        ny, nx = self.image.shape
+        ny, nx = self.parent.image_data.shape
         # clamp to image bounds
         ix0 = max(0, min(ix0, nx-1))
         ix1 = max(0, min(ix1, nx-1))
@@ -478,7 +559,7 @@ class Tools_File(QWidget):
 
     def _reset_zoom(self):
         """Reset axes to show full image."""
-        ny, nx = self.image.shape
+        ny, nx = self.parent.image_data.shape
         self.ax.set_xlim(-0.5, nx - 0.5)
         self.ax.set_ylim(-0.5, ny - 0.5)
         self.canvas.draw_idle()
@@ -489,7 +570,7 @@ class Tools_File(QWidget):
         Keeps axes limits within image extents.
         """
         # image extents in data coords
-        ny, nx = self.image.shape
+        ny, nx = self.parent.image_data.shape
         x_min_img, x_max_img = 0.0, float(nx)
         y_min_img, y_max_img = 0.0, float(ny)
 
@@ -557,13 +638,13 @@ class Tools_File(QWidget):
             return
         ix = int(np.floor(xdata + 0.5))
         iy = int(np.floor(ydata + 0.5))
-        ny, nx = self.image.shape
+        ny, nx = self.parent.image_data.shape
         if ix < 0 or ix >= nx or iy < 0 or iy >= ny:
             self.edit_x.clear()
             self.edit_y.clear()
             self.edit_adu.clear()
             return
-        val = self.image[iy, ix]
+        val = self.parent.image_data[iy, ix]
         self.edit_x.setText(str(ix))
         self.edit_y.setText(str(iy))
         if np.isfinite(val):

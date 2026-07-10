@@ -8,8 +8,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-# Utilitaires
-from tools.Tools_File import Tools_File
+
+import numpy as np
+
+from astropy.io import fits
 
 
 
@@ -54,16 +56,15 @@ class GUI_Tab_File(QWidget):
             self, "Choisir un fichier FITS", "", "FITS Files (*.fits *.fits.gz)"
         )
         if filename:
-            self.parent.image_data = Tools_File.load_fits_image(filename)
+            with fits.open(filename, memmap=False) as hdul:
+                self.parent.base_image = np.array(hdul[0].data, dtype=float)
+                self.parent.image_data = self.parent.base_image.copy()
             QMessageBox.information(self, "Chargement", f"Image chargee : {filename}")
-            print(self.parent.image_data)
+            self.parent.display.update_display()
 
     def afficher_image(self):
-        if self.parent.image_data is None:
-            QMessageBox.warning(self, "Erreur", "Aucune image chargee.")
-            return
-        self.parent.image_window = Tools_File(self.parent.image_data)
-        self.parent.image_window.show()
-
+        self.parent.onglets.setCurrentIndex(1)
+        
+        
     def quitter(self):
         sys.exit() 
