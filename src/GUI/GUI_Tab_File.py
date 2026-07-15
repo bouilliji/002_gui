@@ -58,9 +58,8 @@ class GUI_Tab_File(QWidget):
         if filename:
             with fits.open(filename, memmap=False) as hdul:
                 self.parent.base_image = np.array(hdul[0].data, dtype=float)
-                self.parent.image_data = self.parent.base_image.copy()
             QMessageBox.information(self, "Chargement", f"Image chargee : {filename}")
-            self.parent.display.update_display()
+            self.parent.update_all()
 
     def afficher_image(self):
         self.parent.onglets.setCurrentIndex(1)

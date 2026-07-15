@@ -24,21 +24,27 @@ class main_window(QMainWindow):
         self.move(0, 0)
         self.base_image = None
         self.image_data = None
-        self.image_window = None
         
-        self.display = GUI_Tab_Display(self)
+        self.display    = GUI_Tab_Display(self)
+        self.background = GUI_Tab_Background(self)
+        self.centoid    = GUI_Tab_Centroid(self)
 
         self.onglets = QTabWidget()
-        self.onglets.addTab(GUI_Tab_File(self),       "File")
-        self.onglets.addTab(self.display,             "Display")
-        self.onglets.addTab(GUI_Tab_Background(self), "Background")
-        self.onglets.addTab(GUI_Tab_Centroid(self),   "Centroid")
+        self.onglets.addTab(GUI_Tab_File(self), "File")
+        self.onglets.addTab(self.display,       "Display")
+        self.onglets.addTab(self.background,    "Background")
+        self.onglets.addTab(self.centoid,       "Centroid")
 
         widget_central = QWidget()
         layout = QVBoxLayout()
         layout.addWidget(self.onglets)
         widget_central.setLayout(layout)
         self.setCentralWidget(widget_central)
+        
+    def update_all(self):
+        self.display.update_display()
+        self.background.update()
+        self.centoid.update()
 
 
 if __name__ == "__main__":

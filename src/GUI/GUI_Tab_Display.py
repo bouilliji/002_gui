@@ -4,7 +4,6 @@ from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
-from matplotlib.pyplot import Circle
 
 import numpy as np
 from astropy.visualization import ZScaleInterval, ImageNormalize, AsymmetricPercentileInterval
@@ -16,9 +15,6 @@ class GUI_Tab_Display(QWidget):
 
     def __init__(self, parent):
         super().__init__()
-        self.setWindowTitle("FITS Viewer (PyQt6)")
-        self.resize(1200, 800)
-        self.move(0, 0)
         
         with open(r'./src/GUI/saved_preset.json', 'r') as data:
             self.saved_preset = json.load(data)
@@ -224,7 +220,7 @@ class GUI_Tab_Display(QWidget):
             y1, x1, y2, x2 = self.saved_preset[self.combo.currentText()]
             self.parent.image_data = self.parent.base_image[x1:x2, y1:y2]
         
-        self.update_display()
+        self.parent.update_all()
         
 
     def _on_option_choisie(self, nom):
@@ -253,9 +249,12 @@ class GUI_Tab_Display(QWidget):
     
     
     def update_display(self):
-        if self.parent.image_data is not None:
-            self.minval = float(np.nanmin(self.parent.image_data))
-            self.maxval = float(np.nanmax(self.parent.image_data))
+        if self.parent.base_image is not None:
+            
+            image = self.parent.image_data if self.parent.image_data is not None else self.parent.base_image
+                
+            self.minval = float(np.nanmin(image))
+            self.maxval = float(np.nanmax(image))
 
             if not np.isfinite(self.minval):
                 self.minval = 0.0
@@ -265,9 +264,8 @@ class GUI_Tab_Display(QWidget):
                 self.maxval = self.minval + 1.0
 
             self.ax.clear()   # <-- vider les axes avant de redessiner
-            self.im = self.ax.imshow(self.parent.image_data, cmap="gray", origin="lower",
+            self.im = self.ax.imshow(image, cmap="gray", origin="lower",
                                     vmin=self.minval, vmax=self.maxval)
-            self.ax.set_title("Image FITS")
             self.stack.setCurrentWidget(self.page_contenu)
         else:
             self.minval = 0.0
@@ -279,6 +277,8 @@ class GUI_Tab_Display(QWidget):
     
     def _on_mouse_move(self, event):
         """Met a jour X, Y, ADU selon la position de la souris sur l'image."""
+        image = self.parent.image_data if self.parent.image_data is not None else self.parent.base_image
+        
         # Si souris hors axes ou pas sur image, vider les champs
         if event.inaxes is None:
             self.edit_x.clear()
@@ -300,7 +300,7 @@ class GUI_Tab_Display(QWidget):
         ix = int(np.floor(xdata + 0.5))
         iy = int(np.floor(ydata + 0.5))
 
-        ny, nx = self.parent.image_data.shape
+        ny, nx = image.shape
         if ix < 0 or ix >= nx or iy < 0 or iy >= ny:
             # hors image
             self.edit_x.clear()
@@ -309,7 +309,7 @@ class GUI_Tab_Display(QWidget):
             return
 
         # Recuperer valeur ADU du pixel
-        val = self.parent.image_data[iy, ix]
+        val = image[iy, ix]
 
         # Mettre a jour champs (format compact)
         self.edit_x.setText(str(ix))
@@ -334,10 +334,11 @@ class GUI_Tab_Display(QWidget):
             self.edit_vmax.setText(fmt.format(vmax))
 
     def _apply_iris(self):
-
-        imin = np.min(self.parent.image_data)
-        imax = np.max(self.parent.image_data)
-        median = np.median(self.parent.image_data)
+        image = self.parent.image_data if self.parent.image_data is not None else self.parent.base_image
+        
+        imin = np.min(image)
+        imax = np.max(image)
+        median = np.median(image)
         vmin = median - 200
         vmax = median + 1000
         if vmin<imin:
@@ -364,7 +365,7 @@ class GUI_Tab_Display(QWidget):
 
     def _apply_percentile(self, lowpct=3, highpct=98):
         """Calcule les percentiles lowpct-highpct en ignorant NaN et applique."""
-        data = self.parent.image_data
+        data = self.parent.image_data if self.parent.image_data is not None else self.parent.base_image
         # extraire valeurs finies
         vals = data[np.isfinite(data)].ravel()
         if vals.size == 0:
@@ -402,14 +403,16 @@ class GUI_Tab_Display(QWidget):
 
 
     def _apply_zscale(self):
+        image = self.parent.image_data if self.parent.image_data is not None else self.parent.base_image
+        
         try:
             interval = ZScaleInterval()
             # preferer get_limits quand disponible
             if hasattr(interval, "get_limits"):
-                vmin, vmax = interval.get_limits(self.parent.image_data)
+                vmin, vmax = interval.get_limits(image)
             else:
                 # fallback: appeler interval puis deduire echelle depuis resultat si possible
-                res = interval(self.parent.image_data)
+                res = interval(image)
                 if isinstance(res, (tuple, list, np.ndarray)):
                     # si c'est un tableau (image normalisee), prendre min/max et denormaliser
                     arr = np.asarray(res)
@@ -417,8 +420,8 @@ class GUI_Tab_Display(QWidget):
                         rmin, rmax = float(np.nanmin(arr)), float(np.nanmax(arr))
                         # denormaliser par minval/maxval de l'image retourne si besoin
                         # ici mieux prendre percentiles sur image d'origine comme fallback
-                        vmin = float(np.nanpercentile(self.parent.image_data, 0.5))
-                        vmax = float(np.nanpercentile(self.parent.image_data, 99.5))
+                        vmin = float(np.nanpercentile(image, 0.5))
+                        vmax = float(np.nanpercentile(image, 99.5))
                     else:
                         raise ValueError
                 else:
@@ -427,7 +430,7 @@ class GUI_Tab_Display(QWidget):
                 raise ValueError
         except Exception:
             # fallback simple: percentiles robustes
-            vals = self.parent.image_data[np.isfinite(self.parent.image_data)].ravel()
+            vals = image[np.isfinite(image)].ravel()
             if vals.size:
                 vmin = float(np.percentile(vals, 0.5))
                 vmax = float(np.percentile(vals, 99.5))
@@ -523,6 +526,8 @@ class GUI_Tab_Display(QWidget):
 
     # Rectangle selector callback: store rectangle in image pixel coords
     def _on_select(self, eclick, erelease):
+        image = self.parent.image_data if self.parent.image_data is not None else self.parent.base_image
+        
         # eclick and erelease are matplotlib events with xdata,ydata in data coords
         x0, y0 = eclick.xdata, eclick.ydata
         x1, y1 = erelease.xdata, erelease.ydata
@@ -534,7 +539,7 @@ class GUI_Tab_Display(QWidget):
         ix1 = int(np.floor(max(x0, x1) + 0.5))
         iy0 = int(np.floor(min(y0, y1) + 0.5))
         iy1 = int(np.floor(max(y0, y1) + 0.5))
-        ny, nx = self.parent.image_data.shape
+        ny, nx = image.shape
         # clamp to image bounds
         ix0 = max(0, min(ix0, nx-1))
         ix1 = max(0, min(ix1, nx-1))
@@ -558,8 +563,10 @@ class GUI_Tab_Display(QWidget):
         self.canvas.draw_idle()
 
     def _reset_zoom(self):
+        image = self.parent.image_data if self.parent.image_data is not None else self.parent.base_image
+        
         """Reset axes to show full image."""
-        ny, nx = self.parent.image_data.shape
+        ny, nx = image.shape
         self.ax.set_xlim(-0.5, nx - 0.5)
         self.ax.set_ylim(-0.5, ny - 0.5)
         self.canvas.draw_idle()
@@ -569,8 +576,10 @@ class GUI_Tab_Display(QWidget):
         Dezoom by factor 2 around current view center.
         Keeps axes limits within image extents.
         """
+        image = self.parent.image_data if self.parent.image_data is not None else self.parent.base_image
+        
         # image extents in data coords
-        ny, nx = self.parent.image_data.shape
+        ny, nx = image.shape
         x_min_img, x_max_img = 0.0, float(nx)
         y_min_img, y_max_img = 0.0, float(ny)
 
@@ -624,6 +633,8 @@ class GUI_Tab_Display(QWidget):
         self.canvas.draw_idle()
 
     def _on_mouse_move(self, event):
+        image = self.parent.image_data if self.parent.image_data is not None else self.parent.base_image
+        
         if event.inaxes is None:
             self.edit_x.clear()
             self.edit_y.clear()
@@ -638,13 +649,13 @@ class GUI_Tab_Display(QWidget):
             return
         ix = int(np.floor(xdata + 0.5))
         iy = int(np.floor(ydata + 0.5))
-        ny, nx = self.parent.image_data.shape
+        ny, nx = image.shape
         if ix < 0 or ix >= nx or iy < 0 or iy >= ny:
             self.edit_x.clear()
             self.edit_y.clear()
             self.edit_adu.clear()
             return
-        val = self.parent.image_data[iy, ix]
+        val = image[iy, ix]
         self.edit_x.setText(str(ix))
         self.edit_y.setText(str(iy))
         if np.isfinite(val):
